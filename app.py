@@ -1,28 +1,26 @@
+"""
+Low-code text-adventure framework. The whole script of the game is JSON, 
+and can be hand written in notepad without knowing any programming languages.
+It kinda sucks, as it doesn't provide good feedback, or even any guaranteed
+functionality like a "look" command to remind you where you are, it just repeats
+the text of the room entry command.  Opportunities to extend this would be to include
+another field which provided a response to the command then either displayed the "look"
+command again or suppressed it.
+"""
+import json
+
 from flask import Flask, render_template, request
 
 app = Flask(__name__)
 
 def respond(text, location):
+    """Helper function for the return object type"""
     return {
         "text": text,
         "location": location
     }
 
-STATES = {
-    "SPECIAL": respond(
-        text="""You find yourself awakening from a brief reverie, as if from a deep slumber."""
-             """You are in your lounge.  On the wall are paintings rendered by friends."""
-             """"You are filled with a great sense of apathy, and you refuse to """
-             """<b>leave</b> this room.""",
-        location="START"),
-    ("START", "leave"): respond(
-        text="""You leave your room and begin the rest of your life.""", 
-        location="WIN"),
-    ("WIN", "*"): respond(
-        text="""Having overcome apathy and left your room, you have already won at life.""",
-        location="WIN"
-    )
-}
+STATES = json.load(open('script.json', 'r', encoding='utf8'))
 
 @app.route("/", methods=['GET'])
 def start():
@@ -33,12 +31,14 @@ def start():
 def go_route():
     """Returns a new state given the current state and a command"""
     state = request.json
-    location = None
+    print(STATES)
+    print(state)
+
+    location = "START"
+    command = "*"
+
     if state:
-        location = state.get("location")
-        command = state.get("command")
+        location = state.get("location") or "START"
+        command = state.get("command") or "*"
 
-    if location is None:
-        return STATES["SPECIAL"]
-
-    return STATES.get((location, command)) or STATES.get((location, "*"))
+    return STATES.get(f'{location},{command}') or STATES.get(f'{location},*')

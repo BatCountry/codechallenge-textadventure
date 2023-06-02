@@ -21,23 +21,35 @@ function waitFor(selector) {
 
 function makeState(story, input) {
   var state = {
-    accepting: true,
-    location: null,
+    location: "START",
     command: null,
     update: null,
+    accepting: true,
     input: input,
     story: story
   };
 
   function update(content) {
-    document.getElementById("story").appendChild(
-      document.createTextNode(content.text));
+    var story = document.getElementById("story");
+    story.innerHTML = "";
+
+    content.text.split(/\*([^*]+)\*/).forEach((element, index) => {
+      newElem = document.createTextNode(element);
+      if(index > 0 && index % 2 !== 0) {
+        newS = document.createElement("span");
+        newS.style.color = "green";
+
+        newS.appendChild(newElem);
+        story.appendChild(newS);
+      }
+      else story.appendChild(newElem);
+    });
+  
     state.location = content.location;
     state.accepting = true;
   }
-
-  update.bind(this);
-  state.update = update;
+  
+  state.update = update.bind(this);
 
   return state;
 }
@@ -49,30 +61,32 @@ function post(command, state) {
       'Accept': 'application/json',
       'Content-Type': 'application/json'
     },
-    body: JSON.stringify({ ...state, "command": command })
+    body: JSON.stringify({"location": state.location, "command": command })
   })
     .then(response => response.json())
-    .then(state.update);
+    .then(content => state.update(content));
 }
 
 function acceptCommand(state, command) {
   if (!state.accepting) return;
   state.accepting = false;
-  document.getElementById(story)
   post(command, state);
 }
 
-waitFor("#input").then(input => {
-  // lifted from https://developer.mozilla.org/en-US/docs/Web/API/Element/keydown_event
-  input.addEventListener("keydown", (event) => {
-    if (event.isComposing || event.keyCode === 229) return;
-  });
+waitFor("#userInput").then(input => {
+  waitFor("#story").then(story => {
+    userInput.value = "";
+    state = makeState(story, input);
 
-  waitFor("#story").then(
-    story => {
-      state = makeState(story, input);
-      acceptCommand(state, null);
-      story.dispatchEvent(new Event());
-    }
-  );
-})
+    input.addEventListener("keydown", (event) => {
+      // lifted from https://developer.mozilla.org/en-US/docs/Web/API/Element/keydown_event
+      if (event.isComposing || event.keyCode !== 13) return;
+      var input = document.getElementById("userInput");
+      var command = input.value;
+      input.value = "";
+      acceptCommand(state, command || null);
+    });
+
+    post("*", state);
+  }
+)});
